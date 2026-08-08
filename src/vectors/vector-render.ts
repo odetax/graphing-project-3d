@@ -1,220 +1,161 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import type { VectorMathResults, VectorRenderModule } from '../interfaces.ts';
 
 // ---------------------------------------------------------------------------
-// Constants
+// Design System Color Tokens & Palette
 // ---------------------------------------------------------------------------
 
-/** Base color for the initial-velocity arrow shaft and cone. */
+/** Initial velocity vector arrow and decomposition color (Cyan) */
 const ARROW_COLOR = 0x00e5ff;
+const ARROW_CSS_COLOR = '#00e5ff';
 
-/** Color of the trajectory line (projectile path). */
+/** Trajectory main curve color (Vibrant Orange) */
 const TRAJECTORY_COLOR = 0xff6d00;
 
-/**
- * Fractional padding added around the bounding sphere when repositioning
- * the camera.  A value of 0.25 means the sphere occupies ~75 % of the
- * frustum height, leaving comfortable breathing room on all sides.
- */
-const CAMERA_PADDING_FACTOR = 0.25;
+/** Peak Height (Hmax) projection color (Gold/Amber) */
+const PEAK_COLOR = 0xffb74d;
+const PEAK_CSS_COLOR = '#ffb74d';
 
-/**
- * Minimum distance the camera is allowed to be from the scene centre,
- * even for very small trajectories (prevents extreme near-clipping).
- */
-const CAMERA_MIN_DISTANCE = 5;
+/** Range & Impact (Rmax) projection color (Purple) */
+const IMPACT_COLOR = 0xc084fc;
+const IMPACT_CSS_COLOR = '#c084fc';
 
-// ---------------------------------------------------------------------------
-// Helper types
-// ---------------------------------------------------------------------------
+/** Axis Component Colors */
+const X_AXIS_CSS = '#ff5252';
+const Y_AXIS_CSS = '#4caf50';
+const Z_AXIS_CSS = '#29b6f6';
 
-/** Disposable Three.js resource (geometry or material). */
+const CAMERA_PADDING_FACTOR = 0.35;
+const CAMERA_MIN_DISTANCE = 8;
+
 interface Disposable {
     dispose(): void;
 }
 
-// ---------------------------------------------------------------------------
-// VectorRender
-// ---------------------------------------------------------------------------
-
-/**
- * **Module 3 - 3D Vector Graphics**
- *
- * Responsible exclusively for *rendering* pre-computed projectile data in a
- * Three.js scene.  It owns three visual elements:
- *
- * 1. An {@link THREE.ArrowHelper} that represents the initial velocity vector.
- * 2. A {@link THREE.Line} that traces the full 3-D projectile trajectory.
- * 3. Automatic camera framing (auto-framing) that repositions the
- *    {@link THREE.PerspectiveCamera} so the entire trajectory always fits
- *    within the viewport, regardless of scale.
- *
- * **No physics calculations are performed here** (SRP).
- * All GPU resources are disposed of before each new render and on
- * {@link deactivate} to prevent memory leaks.
- */
 export class VectorRender implements VectorRenderModule {
-    // -----------------------------------------------------------------------
-    // Private fields
-    // -----------------------------------------------------------------------
-
-    /** The host scene provided by the base team. */
     private readonly scene: THREE.Scene;
-
-    /** The perspective camera provided by the base team. */
     private readonly camera: THREE.PerspectiveCamera;
-
-    /**
-     * Container group for every object this module adds to the scene.
-     * Keeping them in a single group makes bulk show/hide and disposal trivial.
-     */
     private readonly group: THREE.Group;
-
-    /**
-     * Tracks every geometry and material allocated by this module so they can
-     * be deterministically released from GPU memory via {@link disposeAll}.
-     */
     private readonly disposables: Disposable[] = [];
+    
+    private labelRenderer = new CSS2DRenderer();
+    private animationFrameId: number | null = null;
 
-    // -----------------------------------------------------------------------
-    // Constructor
-    // -----------------------------------------------------------------------
-
-    /**
-     * @param scene  - The Three.js scene managed by the base team.
-     * @param camera - The perspective camera managed by the base team.
-     */
     constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
         this.scene = scene;
         this.camera = camera;
 
         this.group = new THREE.Group();
         this.group.name = 'VectorRenderGroup';
-        // Group is added immediately; it starts empty and becomes visible on activate().
+        this.group.visible = false;
         this.scene.add(this.group);
+
+        const container = document.getElementById('canvas-container') || document.body;
+        const initialWidth = container.clientWidth || window.innerWidth;
+        const initialHeight = container.clientHeight || window.innerHeight;
+
+        this.labelRenderer.setSize(initialWidth, initialHeight);
+        this.labelRenderer.domElement.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;display:none;';
+        container.appendChild(this.labelRenderer.domElement);
+
+        const updateSize = () => {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            if (width > 0 && height > 0) {
+                this.labelRenderer.setSize(width, height);
+            }
+        };
+
+        const resizeObserver = new ResizeObserver(updateSize);
+        resizeObserver.observe(container);
+        window.addEventListener('resize', updateSize);
     }
 
-    // -----------------------------------------------------------------------
-    // Public API  (VectorRenderModule contract)
-    // -----------------------------------------------------------------------
-
-    /**
-     * Makes the module's group visible.
-     * Called by the base team when the application enters VECTORS mode.
-     */
     activate(): void {
         this.group.visible = true;
+        this.labelRenderer.domElement.style.display = 'block';
+        this.startAnimationLoop();
     }
 
-    /**
-     * Hides the group and releases all GPU resources owned by this module.
-     * Must be called by the base team when leaving VECTORS mode so that
-     * geometries and materials are evicted from the GPU memory budget.
-     */
     deactivate(): void {
         this.group.visible = false;
+        this.labelRenderer.domElement.style.display = 'none';
+        this.stopAnimationLoop();
         this.clearScene();
     }
 
-    /**
-     * Main entry point for this module.
-     *
-     * Given the pre-computed {@link VectorMathResults}, this method:
-     * 1. Clears any previously rendered objects (disposing GPU resources).
-     * 2. Draws the initial-velocity arrow.
-     * 3. Draws the trajectory curve.
-     * 4. Repositions the camera to frame the entire trajectory.
-     *
-     * @param data - Pure math results produced by Module 2 (VectorMath).
-     */
     plotTrajectory(data: VectorMathResults): void {
-        // Always clean up before drawing so we never accumulate stale objects.
         this.clearScene();
 
         if (data.trajectoryPoints.length < 2) {
-            console.warn('[VectorRender] Not enough trajectory points to render (minimum 2).');
+            console.warn('[VectorRender] Insufficient trajectory points to render.');
             return;
         }
 
-        this.drawInitialArrow(data.vx, data.vy, data.vz);
+        this.drawInitialArrow(data);
         this.drawTrajectoryLine(data.trajectoryPoints);
+        this.drawProjectionsAndBadges(data);
         this.frameCamera(data.trajectoryPoints);
     }
 
-    // -----------------------------------------------------------------------
-    // Private - scene construction
-    // -----------------------------------------------------------------------
-
-    /**
-     * Builds and adds a {@link THREE.ArrowHelper} that starts at the world
-     * origin and points in the direction of the initial velocity vector
-     * (vx, vy, vz).
-     *
-     * The arrow length is proportional to the velocity magnitude so it gives
-     * an intuitive sense of speed relative to the trajectory scale.
-     *
-     * @param vx - X component of the initial velocity.
-     * @param vy - Y component of the initial velocity.
-     * @param vz - Z component of the initial velocity.
-     */
-    private drawInitialArrow(vx: number, vy: number, vz: number): void {
-        const direction = new THREE.Vector3(vx, vy, vz);
+    private drawInitialArrow(data: VectorMathResults): void {
+        const direction = new THREE.Vector3(data.vx, data.vy, data.vz);
         const magnitude = direction.length();
 
-        // A zero-magnitude vector has no direction; skip to avoid NaN in lookAt.
-        if (magnitude === 0) {
-            console.warn('[VectorRender] Initial velocity is zero; arrow skipped.');
-            return;
-        }
+        if (magnitude === 0) return;
 
         direction.normalize();
 
-        // Use a fraction of the magnitude as arrow length so it reads correctly
-        // at any scale without dominating the viewport.
-        const arrowLength = Math.max(magnitude * 0.15, 1);
+        const arrowLength = Math.max(magnitude * 0.15, 1.5);
         const headLength  = arrowLength * 0.25;
         const headWidth   = headLength  * 0.5;
 
         const arrow = new THREE.ArrowHelper(
             direction,
-            new THREE.Vector3(0, 0, 0), // origin
+            new THREE.Vector3(0, 0, 0),
             arrowLength,
             ARROW_COLOR,
             headLength,
-            headWidth,
+            headWidth
         );
         arrow.name = 'InitialVelocityArrow';
 
-        // ArrowHelper internally creates a line and a cone mesh.
-        // Register their geometries and materials for later disposal.
         if (arrow.line.geometry) this.track(arrow.line.geometry);
         if (arrow.cone.geometry) this.track(arrow.cone.geometry);
         if (arrow.line.material instanceof THREE.Material) this.track(arrow.line.material);
         if (arrow.cone.material instanceof THREE.Material) this.track(arrow.cone.material);
 
         this.group.add(arrow);
+
+        // Flecha de punta del vector y proyecciones de velocidad inicial
+        const tipPos = direction.clone().multiplyScalar(arrowLength);
+        const groundPos = new THREE.Vector3(tipPos.x, 0, tipPos.z);
+        const xPos = new THREE.Vector3(tipPos.x, 0, 0);
+        const zPos = new THREE.Vector3(0, 0, tipPos.z);
+        const yPos = new THREE.Vector3(0, tipPos.y, 0);
+
+        this.addDashedLine([tipPos, groundPos], ARROW_COLOR);
+        this.addDashedLine([groundPos, xPos], ARROW_COLOR);
+        this.addDashedLine([groundPos, zPos], ARROW_COLOR);
+        this.addDashedLine([tipPos, yPos], ARROW_COLOR);
+
+        // Insignia del vector inicial
+        this.addNeuBadge(
+            `V₀ = ${magnitude.toFixed(1)} m/s (Vx: ${data.vx.toFixed(1)}, Vy: ${data.vy.toFixed(1)}, Vz: ${data.vz.toFixed(1)})`,
+            new THREE.Vector3(tipPos.x, tipPos.y + 0.6, tipPos.z),
+            ARROW_CSS_COLOR
+        );
     }
 
-    /**
-     * Builds a {@link THREE.Line} from the array of 3-D trajectory points and
-     * adds it to the scene group.
-     *
-     * A {@link THREE.BufferGeometry} is used (rather than the legacy Geometry)
-     * because it maps directly to the GPU buffer layout, minimising driver
-     * overhead and upload time.
-     *
-     * @param points - Ordered array of world-space positions along the flight path.
-     */
     private drawTrajectoryLine(points: VectorMathResults['trajectoryPoints']): void {
         const geometry = new THREE.BufferGeometry();
         this.track(geometry);
 
-        // Flatten [{ x, y, z }, ...] -> Float32Array([x, y, z, x, y, z, ...])
-        // as expected by BufferGeometry.setFromPoints / setAttribute.
         const threePoints = points.map(p => new THREE.Vector3(p.x, p.y, p.z));
         geometry.setFromPoints(threePoints);
 
-        const material = new THREE.LineBasicMaterial({ color: TRAJECTORY_COLOR });
+        const material = new THREE.LineBasicMaterial({ color: TRAJECTORY_COLOR, linewidth: 3 });
         this.track(material);
 
         const line = new THREE.Line(geometry, material);
@@ -222,120 +163,201 @@ export class VectorRender implements VectorRenderModule {
         this.group.add(line);
     }
 
-    // -----------------------------------------------------------------------
-    // Private - camera auto-framing
-    // -----------------------------------------------------------------------
+    /**
+     * Dibuja las proyecciones geométricas exactas de Cúspide (Hmax) e Impacto (Rmax)
+     * conectando de forma limpia los ejes X, Y y Z.
+     */
+    private drawProjectionsAndBadges(data: VectorMathResults): void {
+        const points = data.trajectoryPoints;
+
+        // 1. CÓMPUTO Y PROYECCIÓN DE CÚSPIDE (ALTURA MÁXIMA Hmax)
+        let maxPoint = points[0];
+        for (let i = 0; i < points.length; i++) {
+            if (points[i].y > maxPoint.y) {
+                maxPoint = points[i];
+            }
+        }
+
+        const apexPos = new THREE.Vector3(maxPoint.x, maxPoint.y, maxPoint.z);
+        const apexGround = new THREE.Vector3(maxPoint.x, 0, maxPoint.z);
+        const apexYAxis = new THREE.Vector3(0, maxPoint.y, 0);
+
+        // Líneas punteadas de cúspide
+        this.addDashedLine([apexPos, apexGround], PEAK_COLOR);
+        this.addDashedLine([apexPos, apexYAxis], PEAK_COLOR);
+
+        // Insignia de Altura Máxima en la cúspide
+        this.addNeuBadge(`Hmáx: ${data.maxHeight.toFixed(1)}m`, new THREE.Vector3(apexPos.x, apexPos.y + 0.7, apexPos.z), PEAK_CSS_COLOR);
+
+        // Marca exacta sobre el eje Y
+        this.addTickMark(apexYAxis, 'Y');
+        this.addNeuBadge(`Y = ${data.maxHeight.toFixed(1)}m`, new THREE.Vector3(-0.8, apexYAxis.y, 0), Y_AXIS_CSS);
+
+
+        // 2. CÓMPUTO Y PROYECCIÓN DE IMPACTO (ALCANCE Rmax Y COMPONENTES X/Z)
+        const endPoint = points[points.length - 1];
+        const landingPos = new THREE.Vector3(endPoint.x, endPoint.y, endPoint.z);
+
+        // Proyección sobre el suelo hacia eje X y eje Z
+        const landingXAxis = new THREE.Vector3(endPoint.x, 0, 0);
+        const landingZAxis = new THREE.Vector3(0, 0, endPoint.z);
+
+        this.addDashedLine([landingPos, landingXAxis], IMPACT_COLOR);
+        this.addDashedLine([landingPos, landingZAxis], IMPACT_COLOR);
+
+        // Insignia en el punto de impacto
+        this.addNeuBadge(
+            `Alcance: ${data.maxRange.toFixed(1)}m (${data.flightTime.toFixed(1)}s)`,
+            new THREE.Vector3(landingPos.x, landingPos.y + 0.7, landingPos.z),
+            IMPACT_CSS_COLOR
+        );
+
+        // Componente real de distancia en X (Vx * flightTime)
+        const realComponentX = data.vx * data.flightTime;
+        this.addTickMark(landingXAxis, 'X');
+        this.addNeuBadge(`X = ${realComponentX.toFixed(1)}m`, new THREE.Vector3(landingXAxis.x, -0.6, 0), X_AXIS_CSS);
+
+        // Componente real de distancia en Z (Vz * flightTime) si aplica
+        if (Math.abs(data.vz) > 0.1) {
+            const realComponentZ = data.vz * data.flightTime;
+            this.addTickMark(landingZAxis, 'Z');
+            this.addNeuBadge(`Z = ${realComponentZ.toFixed(1)}m`, new THREE.Vector3(0, -0.6, landingZAxis.z), Z_AXIS_CSS);
+        }
+    }
+
+    private addDashedLine(points: THREE.Vector3[], colorHex: number): void {
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        this.track(geometry);
+
+        const material = new THREE.LineDashedMaterial({
+            color: colorHex,
+            dashSize: 0.35,
+            gapSize: 0.2,
+            linewidth: 2,
+            transparent: true,
+            opacity: 0.8
+        });
+        this.track(material);
+
+        const line = new THREE.Line(geometry, material);
+        line.computeLineDistances();
+        this.group.add(line);
+    }
+
+    private addTickMark(pos: THREE.Vector3, axis: 'X' | 'Y' | 'Z'): void {
+        let p1: THREE.Vector3, p2: THREE.Vector3;
+        const s = 0.25;
+
+        if (axis === 'X') {
+            p1 = new THREE.Vector3(pos.x, -s, 0);
+            p2 = new THREE.Vector3(pos.x, s, 0);
+        } else if (axis === 'Y') {
+            p1 = new THREE.Vector3(-s, pos.y, 0);
+            p2 = new THREE.Vector3(s, pos.y, 0);
+        } else {
+            p1 = new THREE.Vector3(0, -s, pos.z);
+            p2 = new THREE.Vector3(0, s, pos.z);
+        }
+
+        const geom = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+        this.track(geom);
+
+        const matColor = axis === 'X' ? 0xff5252 : axis === 'Y' ? 0x4caf50 : 0x29b6f6;
+        const mat = new THREE.LineBasicMaterial({ color: matColor, linewidth: 2 });
+        this.track(mat);
+
+        this.group.add(new THREE.Line(geom, mat));
+    }
 
     /**
-     * Repositions the camera so the complete trajectory fits within the
-     * viewport at any scale.
-     *
-     * **Why the math works this way:**
-     *
-     * We use {@link THREE.Box3} to compute the axis-aligned bounding box of
-     * the trajectory, then derive its bounding sphere.  The sphere radius `r`
-     * is the smallest radius that contains every trajectory point regardless
-     * of orientation.
-     *
-     * From the sphere centre (`target`) and using the camera's vertical field
-     * of view (vFOV), we can solve for the minimum pull-back distance `d`
-     * such that the sphere *just* fits vertically inside the frustum:
-     *
-     * ```
-     *   tan(vFOV / 2) = r / d   =>   d = r / tan(vFOV / 2)
-     * ```
-     *
-     * Multiplying by `(1 + CAMERA_PADDING_FACTOR)` pushes the camera slightly
-     * further back so the trajectory never touches the viewport edges.
-     *
-     * We then place the camera along the diagonal direction (+X, +Y, +Z) from
-     * the bounding-sphere centre so the trajectory is viewed from a natural
-     * three-quarter perspective, and we point `lookAt` back at the centre to
-     * keep it framed.
-     *
-     * @param points - The same trajectory points used to draw the line.
+     * Crea una insignia flotante neumórfica limpia usando el Design System
      */
+    private addNeuBadge(text: string, position: THREE.Vector3, accentColor: string): void {
+        const div = document.createElement('div');
+        div.textContent = text;
+        div.style.cssText = `
+            color: var(--text-primary, #ffffff);
+            font-family: "Outfit", "Inter", sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            background: var(--card-bg, rgba(13, 17, 26, 0.9));
+            padding: 5px 12px;
+            border-radius: 14px;
+            border: 1px solid ${accentColor};
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            white-space: nowrap;
+            user-select: none;
+            transition: all 0.3s ease;
+        `;
+
+        const cssObject = new CSS2DObject(div);
+        cssObject.position.copy(position);
+        this.group.add(cssObject);
+    }
+
     private frameCamera(points: VectorMathResults['trajectoryPoints']): void {
-        // --- 1. Compute the bounding box of all trajectory points. ----------
         const box = new THREE.Box3();
         for (const p of points) {
             box.expandByPoint(new THREE.Vector3(p.x, p.y, p.z));
         }
 
-        // --- 2. Derive bounding sphere (centre + radius). -------------------
         const sphere = new THREE.Sphere();
         box.getBoundingSphere(sphere);
 
         const { center, radius } = sphere;
-
-        // Guard against a degenerate single-point trajectory.
         const effectiveRadius = Math.max(radius, CAMERA_MIN_DISTANCE * 0.5);
 
-        // --- 3. Compute required pull-back distance. ------------------------
-        //
-        // The vertical half-angle of the frustum determines how much of the
-        // scene fits vertically at a given depth.  Dividing the sphere radius
-        // by tan(vFOV/2) gives the exact depth at which the sphere fills the
-        // screen; adding the padding factor keeps it comfortably inset.
         const vFovRadians  = THREE.MathUtils.degToRad(this.camera.fov / 2);
         const pullBack     = (effectiveRadius / Math.tan(vFovRadians)) * (1 + CAMERA_PADDING_FACTOR);
         const clampedPullBack = Math.max(pullBack, CAMERA_MIN_DISTANCE);
 
-        // --- 4. Position camera along the +X+Y+Z diagonal from centre. -----
-        //
-        // A diagonal view angle exposes all three axes simultaneously, which
-        // is the most informative perspective for 3-D vector analysis.
-        const offset = new THREE.Vector3(1, 1, 1).normalize().multiplyScalar(clampedPullBack);
+        const offset = new THREE.Vector3(1.1, 1.2, 1.3).normalize().multiplyScalar(clampedPullBack);
         this.camera.position.copy(center).add(offset);
-
-        // --- 5. Point camera at the trajectory's centre of mass. ------------
         this.camera.lookAt(center);
 
-        // --- 6. Update near/far planes to prevent clipping. -----------------
-        //
-        // Three.js requires near > 0 and far > near.  We set near to 1 % of
-        // the pull-back distance (safe minimum) and far to 4x the pull-back
-        // to ensure even the farthest point stays visible.
         this.camera.near = Math.max(clampedPullBack * 0.01, 0.1);
-        this.camera.far  = clampedPullBack * 4;
+        this.camera.far  = clampedPullBack * 5;
         this.camera.updateProjectionMatrix();
     }
 
-    // -----------------------------------------------------------------------
-    // Private - memory management
-    // -----------------------------------------------------------------------
+    private startAnimationLoop = () => {
+        if (this.group.visible) {
+            this.labelRenderer.render(this.scene, this.camera);
+        }
+        this.animationFrameId = requestAnimationFrame(this.startAnimationLoop);
+    }
 
-    /**
-     * Registers a GPU resource for deferred disposal.
-     * This is the single point of truth for tracking allocations, keeping
-     * disposal logic centralised and preventing leaks even if future
-     * developers add new resources.
-     *
-     * @param resource - Any Three.js object that exposes a `dispose()` method.
-     */
+    private stopAnimationLoop() {
+        if (this.animationFrameId !== null) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
+    }
+
     private track(resource: Disposable): void {
         this.disposables.push(resource);
     }
 
-    /**
-     * Removes all children from the group, calls `.dispose()` on every
-     * tracked geometry and material, then empties the tracking array.
-     *
-     * This must be called *before* adding new objects (in {@link plotTrajectory})
-     * and *on exit* (in {@link deactivate}) to guarantee zero GPU memory leaks.
-     */
     private clearScene(): void {
-        // Remove every child mesh / helper from the group.
+        this.group.children.forEach(child => {
+            if (child instanceof CSS2DObject) {
+                if (child.element && child.element.parentNode) {
+                    child.element.parentNode.removeChild(child.element);
+                }
+            }
+        });
+
         while (this.group.children.length > 0) {
             this.group.remove(this.group.children[0]);
         }
 
-        // Release GPU buffers and textures.
         for (const resource of this.disposables) {
             resource.dispose();
         }
 
-        // Reset the tracking list.
         this.disposables.length = 0;
     }
 }
+
+

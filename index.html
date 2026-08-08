@@ -1,65 +1,296 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Graficadora 3D</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  </head>
-  <body>
-    <div id="app">
-     
-      <canvas id="webgl-canvas"></canvas>
+<html lang="es">
 
-      <div id="ui-panel">
-        <div class="panel-header">
-          <h1>Graficadora 3D</h1>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Graficadora 3D | Motor de Cálculo Neumórfico</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div id="app" class="neu-app">
+    
+    <!-- Header Top Navigation -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-logo neu-extruded">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M12 3v18M3 12h18"></path>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1 class="brand-title">Graficadora 3D</h1>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Desktop Action Buttons -->
+        <div class="desktop-header-actions">
+          <button id="btn-theme-toggle" class="header-btn neu-btn-icon" title="Cambiar tema">
+            <svg class="theme-icon-sun theme-icon hidden" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <svg class="theme-icon-moon theme-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+
+          <button id="btn-info" class="header-btn neu-btn-icon" title="Guía e Instrucciones">
+            <span class="btn-text">?</span>
+          </button>
+
+          <button id="btn-credits" class="header-btn neu-btn-pill" title="Ver Créditos">
+            Créditos
+          </button>
         </div>
 
-        <div class="mode-selector">
-          <button id="btn-mode-vectors" class="mode-btn active">Vectores</button>
-          <button id="btn-mode-gps" class="mode-btn">GPS</button>
+        <!-- Mobile 3-Dot Options Button & Pure Floating Buttons -->
+        <div class="mobile-header-menu-container">
+          <button id="btn-mobile-menu" class="header-btn neu-btn-icon" title="Opciones">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="1.5"></circle>
+              <circle cx="12" cy="5" r="1.5"></circle>
+              <circle cx="12" cy="19" r="1.5"></circle>
+            </svg>
+          </button>
+          <div id="mobile-dropdown-menu" class="neu-pure-floating-buttons hidden">
+            <button id="btn-theme-toggle-mobile" class="header-btn neu-btn-icon" title="Cambiar tema">
+              <svg class="theme-icon-sun theme-icon hidden" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+              </svg>
+              <svg class="theme-icon-moon theme-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+              </svg>
+            </button>
+            <button id="btn-info-mobile" class="header-btn neu-btn-icon" title="Guía e Instrucciones">
+              <span class="btn-text">?</span>
+            </button>
+            <button id="btn-credits-mobile" class="header-btn neu-btn-pill" title="Ver Créditos">
+              Créditos
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Dashboard Grid -->
+    <main class="app-main">
+      
+      <!-- Left Simulation Controls Card -->
+      <aside id="ui-panel" class="controls-card neu-card">
+        <div class="card-header">
+          <h2>Controles de Simulación</h2>
+        </div>
+        
+        <hr class="neu-divider" />
+
+        <!-- Mode Selector Pill Switch -->
+        <div class="mode-selector neu-inset-container">
+          <button id="btn-mode-vectors" class="mode-btn active neu-tab-btn">Vectores</button>
+          <button id="btn-mode-gps" class="mode-btn neu-tab-btn">GPS Satélite</button>
         </div>
 
+        <!-- Form: Vectors -->
         <form id="form-vectors" class="form-group">
           <div class="input-field">
             <label for="vec-magnitude">Magnitud (Velocidad Inicial)</label>
-            <input type="number" id="vec-magnitude" step="any" min="0.1" placeholder="ej. 50" required />
+            <div class="input-wrapper neu-inset">
+              <input type="number" id="vec-magnitude" step="any" placeholder="Introduce magnitud..." required />
+            </div>
+            <small>Fuerza inicial del proyectil en m/s.</small>
           </div>
+
           <div class="input-field">
-            <label for="vec-elevation">Ángulo de Elevación (grados)</label>
-            <input type="number" id="vec-elevation" step="any" placeholder="ej. 45" required />
+            <label for="vec-elevation">Ángulo de Elevación</label>
+            <div class="input-wrapper neu-inset">
+              <input type="number" id="vec-elevation" step="any" placeholder="45" required />
+            </div>
+            <small>Ángulo respecto al plano horizontal (θ) en grados.</small>
           </div>
+
           <div class="input-field">
-            <label for="vec-azimuth">Ángulo de Azimut (grados)</label>
-            <input type="number" id="vec-azimuth" step="any" placeholder="ej. 0" required />
+            <label for="vec-azimuth">Ángulo de Azimut</label>
+            <div class="input-wrapper neu-inset">
+              <input type="number" id="vec-azimuth" step="any" placeholder="0" required />
+            </div>
+            <small>Rotación horizontal (0° a 360°).</small>
           </div>
-          <button type="submit" class="submit-btn">Graficar trayectoria</button>
+
+          <button type="submit" class="submit-btn neu-btn-primary">Graficar Trayectoria</button>
         </form>
 
+        <!-- Form: GPS -->
         <form id="form-gps" class="form-group hidden">
           <div class="input-field">
-            <label for="gps-lat">Latitud (grados)</label>
-            <input type="number" id="gps-lat" step="any" placeholder="ej. 40.7128" required />
+            <label for="gps-lat">Latitud</label>
+            <div class="input-wrapper neu-inset">
+              <input type="number" id="gps-lat" step="any" placeholder="40.4168" required />
+            </div>
+            <small>Coordenada geográfica (φ).</small>
           </div>
+
           <div class="input-field">
-            <label for="gps-lng">Longitud (grados)</label>
-            <input type="number" id="gps-lng" step="any" placeholder="ej. -74.0060" required />
+            <label for="gps-lng">Longitud</label>
+            <div class="input-wrapper neu-inset">
+              <input type="number" id="gps-lng" step="any" placeholder="-3.7038" required />
+            </div>
+            <small>Coordenada geográfica (λ).</small>
           </div>
-          <button type="submit" id="btn-submit-gps" class="submit-btn">Localizar y obtener altitud</button>
+
+          <button type="submit" id="btn-submit-gps" class="submit-btn neu-btn-primary">Ubicar Satélite</button>
         </form>
-      </div>
+      </aside>
 
-      <div id="loading-overlay">
-        <div class="spinner"></div>
-        <p>Obteniendo datos de altitud...</p>
-      </div>
+      <!-- Right 3D Viewport Card -->
+      <section class="viewport-card neu-card">
+        <div class="viewport-header">
+          <h2 id="viewport-title">Vista de trayectoria</h2>
+          <p id="viewport-subtitle">Visualización 3D del proyectil con datos de magnitud y ángulo.</p>
+        </div>
 
-      <div id="notification"></div>
+        <!-- 3D Canvas Frame -->
+        <div id="canvas-container" class="canvas-container neu-viewport-frame">
+          <canvas id="webgl-canvas"></canvas>
+
+          <!-- GPS Hover Coordinates Badge -->
+          <div id="status-bar" class="status-bar neu-badge hidden">
+            Latitud: 0.0000°, Longitud: 0.0000°
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Instructions Modal -->
+    <div id="info-modal" class="modal-overlay hidden">
+      <div class="modal-content neu-modal-card">
+        <div class="modal-header">
+          <h2 id="modal-title">Instrucciones</h2>
+          <button id="btn-close-modal" class="close-btn neu-btn-close">✕</button>
+        </div>
+        <div id="modal-body" class="modal-body">
+          <!-- Text injected via JS -->
+        </div>
+      </div>
     </div>
-    
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+
+    <!-- Credits Modal -->
+    <div id="credits-modal" class="modal-overlay hidden">
+      <div class="modal-content credits-content neu-modal-card">
+        <div class="modal-header">
+          <h2>Participantes del Proyecto</h2>
+          <button id="btn-close-credits" class="close-btn neu-btn-close">✕</button>
+        </div>
+        <div class="modal-body scrollable-body">
+          
+          <!-- Institutional Header Banner -->
+          <div class="institutional-banner neu-inset-card">
+            <img src="/udo-logo.png" alt="Logo Universidad de Oriente" class="udo-logo" />
+            <div class="institution-header-content">
+              <h3 class="institution-name">Universidad de Oriente</h3>
+              <p class="institution-campus">Núcleo de Anzoátegui</p>
+              <p class="institution-dept">Departamento de Computación y Sistemas</p>
+            </div>
+            <div class="institution-pills">
+              <div class="inst-pill">
+                <span class="pill-label">Cátedra</span>
+                <span class="pill-value">Computación Gráfica I</span>
+              </div>
+              <div class="inst-pill prof">
+                <span class="pill-label">Profesor</span>
+                <span class="pill-value">Ing. Pedro Dorta</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="team-section neu-inset-card">
+            <h3>Equipo 1 - Interfaz Principal y Entorno 3D</h3>
+            <ul>
+              <li>Alejandro Capriles</li>
+              <li>Carlos Barranca</li>
+              <li>Christofer Polyecsko</li>
+              <li>Luis Millán</li>
+            </ul>
+          </div>
+
+          <div class="team-section neu-inset-card">
+            <h3>Equipo 2 - Lógica y Matemáticas de Vectores</h3>
+            <ul>
+              <li>Agostinho Dos Santos</li>
+              <li>Alexandro Núñez</li>
+              <li>José Aguilera</li>
+              <li>Odett Sayegh</li>
+            </ul>
+          </div>
+
+          <div class="team-section neu-inset-card">
+            <h3>Equipo 3 - Gráficos 3D de Vectores</h3>
+            <ul>
+              <li>Adrián Figueroa</li>
+              <li>Edgardo Quiñones</li>
+              <li>Frednali Fernández</li>
+              <li>Luciano Pietrucci</li>
+            </ul>
+          </div>
+
+          <div class="team-section neu-inset-card">
+            <h3>Equipo 4 - Lógica GPS y Conexión a Internet</h3>
+            <ul>
+              <li>Joswar Ramírez</li>
+              <li>Leonardo Di Giorgio</li>
+              <li>Luis Lameda</li>
+              <li>Nel Rondón</li>
+            </ul>
+          </div>
+
+          <div class="team-section neu-inset-card">
+            <h3>Equipo 5 - Gráficos 3D de GPS</h3>
+            <ul>
+              <li>Abraham Sosa</li>
+              <li>Ángel Ramírez</li>
+              <li>Gabriel Garantón</li>
+              <li>Joyce Valerio</li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+      <div class="neu-loader-card">
+        <div class="spinner"></div>
+        <p>Procesando datos...</p>
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="notification" class="neu-toast"></div>
+
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
 </html>
