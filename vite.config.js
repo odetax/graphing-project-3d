@@ -1,5 +1,5 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-    base: process.env.GITHUB_ACTIONS ? "/graphing-test/" : "/",
+    base: process.env.GITHUB_ACTIONS ? "/graphing-project-3d/" : "/",
 });
