@@ -4,13 +4,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Graficadora 3D | Motor de Cálculo Neumórfico</title>
+  <title>Graficadora de Vectores y GPS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
 </head>
 
 <body>
+
+  <div id="splash-overlay">
+
+    <!-- Canvas para el globo 3D girando -->
+    <canvas id="splash-globe"></canvas>
+
+    <!-- Texto sobre el globo -->
+    <div class="splash-content">
+      <h1 class="splash-title">Graficadora de Vectores y GPS</h1>
+      <p class="splash-subtitle">Actividad Final de Computación Gráfica</p>
+
+      <!-- Barra de carga -->
+      <div class="splash-loader-track">
+        <div class="splash-loader-bar"></div>
+      </div>
+    </div>
+
+  </div>
+
   <div id="app" class="neu-app">
     
     <!-- Header Top Navigation -->
@@ -23,7 +42,7 @@
           </svg>
         </div>
         <div class="brand-text">
-          <h1 class="brand-title">Graficadora 3D</h1>
+          <h1 class="brand-title">Graficadora de Vectores y GPS</h1>
         </div>
       </div>
 
@@ -213,7 +232,7 @@
             </div>
             <div class="institution-pills">
               <div class="inst-pill">
-                <span class="pill-label">Cátedra</span>
+                <span class="pill-label">Materia</span>
                 <span class="pill-value">Computación Gráfica I</span>
               </div>
               <div class="inst-pill prof">
