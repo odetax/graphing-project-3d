@@ -220,7 +220,12 @@ export class UIManager {
         }
 
         if (elevationAngle < 0 || elevationAngle > 90) {
-            this.highlightInputError('vec-elevation', 'El ángulo debe estar entre 0 y 90 grados.');
+            this.highlightInputError('vec-elevation', 'El ángulo de elevación debe estar entre 0° y 90°.');
+            hasError = true;
+        }
+
+        if (azimuthAngle < 0 || azimuthAngle > 360) {
+            this.highlightInputError('vec-azimuth', 'El ángulo de azimut debe estar entre 0° y 360°.');
             hasError = true;
         }
 
@@ -235,10 +240,15 @@ export class UIManager {
         const latInput = document.getElementById('gps-lat') as HTMLInputElement;
         const lngInput = document.getElementById('gps-lng') as HTMLInputElement;
 
-        const latitude = parseFloat(latInput.value);
-        const longitude = parseFloat(lngInput.value);
+        // Si el input está vacío, usar el placeholder como valor por defecto
+        const rawLat = latInput.value.trim() || latInput.placeholder;
+        const rawLng = lngInput.value.trim() || lngInput.placeholder;
+
+        const latitude = parseFloat(rawLat);
+        const longitude = parseFloat(rawLng);
 
         if (isNaN(latitude) || isNaN(longitude)) {
+            this.showError('Coordenadas inválidas. Verifica los valores ingresados.');
             return;
         }
 
