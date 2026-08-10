@@ -1,5 +1,8 @@
 # 🌐 Graphing Project (Vectors & GPS 3D)
 
+> [!TIP]
+> Este proyecto se encuentra actualmente desplegado en: https://odetax.github.io/graphing-project-3d/
+
 Este programa es un graficador 3D interactivo desarrollado con **TypeScript, Vite y Three.js**. El sistema permite visualizar vectores cinemáticos (proyectiles) y coordenadas geográficas reales sobre un globo terráqueo.
 
 - **Modo Vectores:** el usuario ingresa velocidad inicial y ángulos de un proyectil, y la app calcula y grafica en 3D la trayectoria balística (vector inicial + curva completa).
